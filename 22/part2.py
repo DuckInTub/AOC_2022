@@ -1,4 +1,8 @@
+from collections import Counter
+from json import dump
 from math import sqrt
+from string import ascii_uppercase
+from turtle import pos
 from typing import Set, Tuple
 from itertools import groupby
 
@@ -19,8 +23,33 @@ def add_points(p1, p2):
     r2, c2 = p2
     return r1 + r2, c1 + c2
 
-def move_cube(facing, start, steps, dimensions):
-    pass
+def move_cube(start, facing, insts, positions, walls):
+    at = start
+    edge_map = parse_cube(positions.union(walls))
+    points = [(at, facing)]
+    
+    for inst in insts:
+        if isinstance(inst, str):
+            facing = turn(inst, facing)
+            points.append((at, facing))
+            continue
+
+        for _ in range(inst):
+            old = at
+            old_facing = facing
+            at = add_points(at, facing)
+            if at not in positions.union(walls):
+                at, facing = edge_map[old, facing]
+            
+            if at in walls:
+                at = old
+                facing = old_facing
+                points.append((at, facing))
+                break
+            points.append((at, facing))
+
+    return points, facing
+
 
 def trace_perimiter(points : Set[Tuple[int, int]]):
     # len = 6*A = 6*x ** 2
@@ -29,8 +58,8 @@ def trace_perimiter(points : Set[Tuple[int, int]]):
     side_length = int(side_length)
     # Determine top_left point
     for c in range(6*side_length):
-        if (0, c) in points:
-            top_left = (0, c)
+        if (1, c) in points:
+            top_left = (1, c)
             break
     
     # Get only points that are on the circumference
@@ -40,7 +69,8 @@ def trace_perimiter(points : Set[Tuple[int, int]]):
     at = add_points(top_left, facing)
     while at != top_left:
         perimiter.add(at)
-        # Prioritize walking: Left, Straight, Right
+        # Prioritize walking: left, straight or right,
+        # since we are walking clockwise around the circumference.
         left = turn('L', facing)
         right = turn('R', facing)
         l = add_points(at, left)
@@ -58,6 +88,70 @@ def trace_perimiter(points : Set[Tuple[int, int]]):
             assert False
     
     return perimiter
+
+def visualize_edges(points : Set[Tuple[int, int]]):
+    # len = 6*A = 6*x ** 2
+    side_length = sqrt(len(points) / 6)
+    assert int(side_length) == side_length
+    side_length = int(side_length)
+
+    perimiter = trace_perimiter(points)
+
+    # Get inner corners
+    inners = set()
+    for p in perimiter:
+        u = add_points(p, UP)
+        d = add_points(p, DOWN)
+        l = add_points(p, LEFT)
+        r = add_points(p, RIGHT)
+        if all(poi in points for poi in [u, d, l, r]):
+            inners.add(p)
+    
+    i = 0
+    alfa = ascii_uppercase
+    max_r = max(map(lambda x : x[0], points)) + 1 
+    max_c = max(map(lambda x : x[1], points)) + 1 
+    m = [[' ']*max_c for _ in range(max_r)]
+    # Walk edges out from inner corners
+    for inner_corner in inners:
+        # Determine counter- and clockwise pointers and facing vectors
+        p_cw = inner_corner
+        p_ccw = inner_corner
+        for d in DIRS:
+            f_ccw = add_points(inner_corner, d)
+            f_cw = add_points(inner_corner, turn('R', d))
+            if f_ccw in perimiter and f_cw in perimiter:
+                f_ccw, f_cw = d, turn('R', d)
+                break
+
+        # Add the edges connected to the inner corner
+        for _ in range(side_length):
+            p_cw = add_points(p_cw, f_cw)
+            p_ccw = add_points(p_ccw, f_ccw)
+            r, c = p_cw
+            m[r][c] = alfa[i] if _ >= side_length // 2 else alfa[i].lower()
+            r, c = p_ccw
+            m[r][c] = alfa[i] if _ >= side_length // 2 else alfa[i].lower()
+        i += 1
+
+        # If both facing vectors don't have to turn,
+        # we can keep adding the edges until they do.
+        while add_points(p_cw, f_cw) in perimiter or add_points(p_ccw, f_ccw) in perimiter:
+            if add_points(p_cw, f_cw) not in perimiter:
+                f_cw = turn('R', f_cw)
+            if add_points(p_ccw, f_ccw) not in perimiter:
+                f_ccw = turn('L', f_ccw)
+
+            for _ in range(side_length):
+                r, c = p_cw
+                m[r][c] = alfa[i] if _ >= side_length // 2 else alfa[i].lower()
+                r, c = p_ccw
+                m[r][c] = alfa[i] if _ >= side_length // 2 else alfa[i].lower()
+                p_cw = add_points(p_cw, f_cw)
+                p_ccw = add_points(p_ccw, f_ccw)
+            i += 1
+
+    return m
 
 def parse_cube(points : Set[Tuple[int, int]]):
     # len = 6*A = 6*x ** 2
@@ -77,9 +171,10 @@ def parse_cube(points : Set[Tuple[int, int]]):
         if all(poi in points for poi in [u, d, l, r]):
             inners.add(p)
     
-    # Walk edges from inner corners
+    # Walk edges out from inner corners
     edge_map = {}
     for inner_corner in inners:
+        # Determine counter- and clockwise pointers and facing vectors
         p_cw = inner_corner
         p_ccw = inner_corner
         for d in DIRS:
@@ -88,78 +183,118 @@ def parse_cube(points : Set[Tuple[int, int]]):
             if f_ccw in perimiter and f_cw in perimiter:
                 f_ccw, f_cw = d, turn('R', d)
                 break
-         
-        while True:
-            for _ in range(side_length):
-                p_cw = add_points(p_cw, f_cw)
-                p_ccw = add_points(p_ccw, f_ccw)
-                edge_map[p_cw, turn('L', f_cw)] = (p_ccw, turn('L', f_ccw))
-                edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
-            
-            if not (add_points(p_cw, f_cw) in perimiter or add_points(p_ccw, f_ccw) in perimiter):
-                edge_map.pop((p_cw, turn('L', f_cw)))
-                edge_map.pop((p_ccw, turn('R', f_ccw)))
-                break
 
+        # Add the edges connected to the inner corner
+        for _ in range(side_length):
+            p_cw = add_points(p_cw, f_cw)
+            p_ccw = add_points(p_ccw, f_ccw)
+            edge_map[p_cw, turn('L', f_cw)] = (p_ccw, turn('L', f_ccw))
+            edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
+
+        # If both facing vectors don't have to turn,
+        # we can keep adding the edges until they do.
+        while add_points(p_cw, f_cw) in perimiter or add_points(p_ccw, f_ccw) in perimiter:
             if add_points(p_cw, f_cw) not in perimiter:
                 f_cw = turn('R', f_cw)
+                p_ccw = add_points(p_ccw, f_ccw)
             if add_points(p_ccw, f_ccw) not in perimiter:
                 f_ccw = turn('L', f_ccw)
+                p_cw = add_points(p_cw, f_cw)
+
+            for _ in range(side_length):
+                edge_map[p_cw, turn('L', f_cw)] = (p_ccw, turn('L', f_ccw))
+                edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
+                if _ == 3:
+                    break
+                p_cw = add_points(p_cw, f_cw)
+                p_ccw = add_points(p_ccw, f_ccw)
 
     return edge_map
 
+def draw_points(points, char):
+    max_r = max(map(lambda x : x[0], points)) + 1
+    max_c = max(map(lambda x : x[1], points)) + 1
+    m = [[' ']*max_c for _ in range(max_r)]
+    
+    for point in points:
+        r, c = point
+        m[r][c] = char
+
+    m = list(''.join(row) for row in m)
+    for row in m:
+        print(row)
+    print()
+
+def visualize_walk(points, walk):
+    max_r = max(map(lambda x : x[0], points)) + 1
+    max_c = max(map(lambda x : x[1], points)) + 1
+    m = [[' ']*max_c for _ in range(max_r)]
+
+    for point in points:
+        r, c = point
+        m[r][c] = '#'
+    
+    for point, facing in walk:
+        char = '↑→↓←'[DIRS.index(facing)]
+        r, c = point
+        m[r][c] = char
+
+    m = list(''.join(row) for row in m)
+    for row in m:
+        print(row)
+    print()
 
 POSITIONS = set()
 WALLS = set()
-with open('test2.txt', 'r') as file:
+with open('input.txt', 'r') as file:
     data = file.readlines()
     path = [''.join(v) for k, v in groupby(data[-1], str.isdigit)]
     path = [int(v) if str.isdigit(v) else v for v in path]
-
-    assert turn('R', UP) == RIGHT
-    assert turn('R', LEFT) == UP
-    assert turn('R', DOWN) == LEFT
-    assert turn('R', RIGHT) == DOWN
-
-    assert turn('L', UP) == LEFT
-    assert turn('L', LEFT) == DOWN
-    assert turn('L', DOWN) == RIGHT
-    assert turn('L', RIGHT) == UP
 
     MAP = [[c for c in line[:-1]] for line in data[:-2]]
     for r, line in enumerate(MAP):
         for c, char in enumerate(line):
             if char == '#':
-                WALLS.add((r, c))
+                WALLS.add((r+1, c+1))
             elif char == '.':
-                POSITIONS.add((r, c))
+                POSITIONS.add((r+1, c+1))
 
-    points = WALLS.union(POSITIONS)
-    perimiter = trace_perimiter(points)
-    max_r = max(map(lambda x : x[0], points))
-    max_c = max(map(lambda x : x[1], points))
 
-    MAP = [[' ']*(max_c+1) for _ in range(max_r+1)]
-    for point in perimiter:
-        r, c = point
-        MAP[r][c] = str('#')
+# Determine top_left point
+# len = 6*A = 6*x ** 2
+points = POSITIONS.union(WALLS)
+side_length = sqrt(len(points) / 6)
+assert int(side_length) == side_length
+side_length = int(side_length)
+# Determine top_left point
+for c in range(6*side_length):
+    if (1, c) in points:
+        top_left = (1, c)
+        break
 
-    for row in MAP:
-        print(''.join(row))
-    print()
+perimiter = trace_perimiter(points)
+# draw_points(perimiter, '#')
 
-    i = 0
-    points = WALLS.union(POSITIONS)
-    edge_map = parse_cube(points)
-    max_r = max(map(lambda x : x[0], points))
-    max_c = max(map(lambda x : x[1], points))
-    MAP = [[' ']*(max_c+9) for _ in range(max_r+9)]
-    for p_out, f_out in edge_map:
-        p_in, f_in = edge_map[p_out, f_out]
-        r, c = p_out
-        MAP[r][c] = str(i) 
-        r, c = p_in
-        MAP[r][c] = str(i) 
+edges = parse_cube(points)
 
-    for row in MAP:
-        print(''.join(row))
+for point in perimiter:
+    if not any((point, d) in edges for d in DIRS):
+        print(point)
+
+# print(Counter(map(lambda x : x[0], edges)))
+print()
+# print(edges)
+edges = set(edge[0] for edge in edges)
+draw_points(edges, '#')
+
+# edge_drawing = visualize_edges(points)
+# for row in edge_drawing:
+#     print(''.join(row))
+# print()
+
+end, facing = move_cube(top_left, RIGHT, path, POSITIONS, WALLS)
+visualize_walk(points, end)
+r, c = end[-1][0]
+print(r, c, facing)
+score = 1000*r + 4*c + [RIGHT, DOWN, LEFT, UP].index(facing)
+print(score)
