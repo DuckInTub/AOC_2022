@@ -69,7 +69,35 @@ def parse_cube(points : Set[Tuple[int, int]]):
         if all(poi in points for poi in [u, d, l, r]):
             inners.add(p)
     
-    return inners
+    # Walk edges from inner corners
+    edge_map = {}
+    for inner_corner in inners:
+        p_cw = inner_corner
+        p_ccw = inner_corner
+        for d in DIRS:
+            f_ccw = add_points(inner_corner, d)
+            f_cw = add_points(inner_corner, turn('R', d))
+            if f_ccw in perimiter and f_cw in perimiter:
+                f_ccw, f_cw = d, turn('R', d)
+                break
+         
+        while True:
+            for _ in range(side_length):
+                p_cw = add_points(p_cw, f_cw)
+                p_ccw = add_points(p_ccw, f_ccw)
+                edge_map[p_cw, turn('L', f_cw)] = (p_ccw, turn('L', f_ccw))
+                edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
+            
+            if not (add_points(p_cw, f_cw) in perimiter or add_points(p_ccw, f_ccw) in perimiter):
+                break
+
+            if add_points(p_cw, f_cw) not in perimiter:
+                f_cw = turn('R', f_cw)
+            if add_points(p_ccw, f_ccw) not in perimiter:
+                f_ccw = turn('L', f_ccw)
+
+
+    return edge_map
 
 
 POSITIONS = set()
