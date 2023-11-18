@@ -1,8 +1,6 @@
 from math import sqrt
-from collections import deque
-from itertools import combinations, groupby
-import numpy as np
 from typing import Set, Tuple
+from itertools import groupby
 
 # Constants
 UP = (-1, 0)
@@ -24,7 +22,7 @@ def add_points(p1, p2):
 def move_cube(facing, start, steps, dimensions):
     pass
 
-def parse_cube(points : Set[Tuple[int, int]]):
+def trace_perimiter(points : Set[Tuple[int, int]]):
     # len = 6*A = 6*x ** 2
     side_length = sqrt(len(points) / 6)
     assert int(side_length) == side_length
@@ -59,6 +57,16 @@ def parse_cube(points : Set[Tuple[int, int]]):
         else:
             assert False
     
+    return perimiter
+
+def parse_cube(points : Set[Tuple[int, int]]):
+    # len = 6*A = 6*x ** 2
+    side_length = sqrt(len(points) / 6)
+    assert int(side_length) == side_length
+    side_length = int(side_length)
+
+    perimiter = trace_perimiter(points)
+
     # Get inner corners
     inners = set()
     for p in perimiter:
@@ -89,6 +97,8 @@ def parse_cube(points : Set[Tuple[int, int]]):
                 edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
             
             if not (add_points(p_cw, f_cw) in perimiter or add_points(p_ccw, f_ccw) in perimiter):
+                edge_map.pop((p_cw, turn('L', f_cw)))
+                edge_map.pop((p_ccw, turn('R', f_ccw)))
                 break
 
             if add_points(p_cw, f_cw) not in perimiter:
@@ -96,13 +106,12 @@ def parse_cube(points : Set[Tuple[int, int]]):
             if add_points(p_ccw, f_ccw) not in perimiter:
                 f_ccw = turn('L', f_ccw)
 
-
     return edge_map
 
 
 POSITIONS = set()
 WALLS = set()
-with open('test.txt', 'r') as file:
+with open('test2.txt', 'r') as file:
     data = file.readlines()
     path = [''.join(v) for k, v in groupby(data[-1], str.isdigit)]
     path = [int(v) if str.isdigit(v) else v for v in path]
@@ -126,6 +135,31 @@ with open('test.txt', 'r') as file:
                 POSITIONS.add((r, c))
 
     points = WALLS.union(POSITIONS)
-    print(len(points))
-    perimiter = parse_cube(points)
-    print(perimiter)
+    perimiter = trace_perimiter(points)
+    max_r = max(map(lambda x : x[0], points))
+    max_c = max(map(lambda x : x[1], points))
+
+    MAP = [[' ']*(max_c+1) for _ in range(max_r+1)]
+    for point in perimiter:
+        r, c = point
+        MAP[r][c] = str('#')
+
+    for row in MAP:
+        print(''.join(row))
+    print()
+
+    i = 0
+    points = WALLS.union(POSITIONS)
+    edge_map = parse_cube(points)
+    max_r = max(map(lambda x : x[0], points))
+    max_c = max(map(lambda x : x[1], points))
+    MAP = [[' ']*(max_c+9) for _ in range(max_r+9)]
+    for p_out, f_out in edge_map:
+        p_in, f_in = edge_map[p_out, f_out]
+        r, c = p_out
+        MAP[r][c] = str(i) 
+        r, c = p_in
+        MAP[r][c] = str(i) 
+
+    for row in MAP:
+        print(''.join(row))
