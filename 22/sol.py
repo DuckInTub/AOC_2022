@@ -8,7 +8,6 @@ with open('input.txt', 'r') as file:
     path = [''.join(v) for k, v in groupby(data[-1], str.isdigit)]
     path = [int(v) if str.isdigit(v) else v for v in path]
     MAP = [[c for c in line[:-1]] for line in data[:-2]]
-    maxY = len(MAP)
     for y, line in enumerate(MAP):
         for x, c in enumerate(line):
             if c == '#':
