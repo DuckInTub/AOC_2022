@@ -1,13 +1,6 @@
-from collections import Counter
-from json import dump
 from math import sqrt
-from platform import java_ver
-from string import ascii_uppercase
-from turtle import pos
 from typing import Set, Tuple
 from itertools import groupby
-
-from numpy import add, inner
 
 # Constants
 UP = (-1, 0)
@@ -110,17 +103,8 @@ def get_inner_corners(points):
     
     return inners
 
-def get_pointers(inner_corner, perimiter):
-    # Determine counter- and clockwise pointers and facing vectors
-    p_cw, p_ccw = inner_corner, inner_corner
-    for d in DIRS:
-        f_ccw = add_points(inner_corner, d)
-        f_cw = add_points(inner_corner, turn('R', d))
-        if f_ccw in perimiter and f_cw in perimiter:
-            f_ccw, f_cw = d, turn('R', d)
-            p_cw = add_points(p_cw, f_cw)
-            p_ccw = add_points(p_ccw, f_ccw)
-            return p_cw, f_cw, p_ccw, f_ccw
+def sub_and_turn(p1, p2, d):
+    return sub_points(p1, p2), turn(d, p2)
 
 def get_edge_mapping(points : Set[Tuple[int, int]]):
     # len = 6*A = 6*x ** 2
@@ -128,92 +112,69 @@ def get_edge_mapping(points : Set[Tuple[int, int]]):
     assert int(side_length) == side_length
     side_length = int(side_length)
 
-    perimiter = trace_perimiter(points)
+    PERIMITER = trace_perimiter(points)
     inners = get_inner_corners(points) 
     edge_map = {}
 
-    # Walk edges out from inner corners
-    for inner_corner in inners:
-        # Determine counter- and clockwise pointers and facing vectors
-        p_cw, f_cw, p_ccw, f_ccw = get_pointers(inner_corner, perimiter)
+    # Determine counter- and clockwise pointers and facing vectors
+    def get_pointers(inner_corner):
+        p_cw, p_ccw = inner_corner, inner_corner
+        for d in DIRS:
+            f_ccw = add_points(inner_corner, d)
+            f_cw = add_points(inner_corner, turn('R', d))
+            if f_ccw in PERIMITER and f_cw in PERIMITER:
+                f_ccw, f_cw = d, turn('R', d)
+                p_cw = add_points(p_cw, f_cw)
+                p_ccw = add_points(p_ccw, f_ccw)
+                return p_cw, f_cw, p_ccw, f_ccw
 
-        # Keep adding edges until both pointers have to turn.
-        while add_points(p_cw, f_cw) in perimiter or add_points(p_ccw, f_ccw) in perimiter:
-            if p_cw not in perimiter:
-                p_cw = sub_points(p_cw, f_cw)
-                f_cw = turn('R', f_cw)
+    # Stich edges until both pointers have to turn
+    def add_edges(p_cw, f_cw, p_ccw, f_ccw):
+        while add_points(p_cw, f_cw) in PERIMITER or add_points(p_ccw, f_ccw) in PERIMITER:
+            if p_cw not in PERIMITER:
+                p_cw, f_cw = sub_and_turn(p_cw, f_cw, 'R')
 
-            if p_ccw not in perimiter:
-                p_ccw = sub_points(p_ccw, f_ccw)
-                f_ccw = turn('L', f_ccw)
+            if p_ccw not in PERIMITER:
+                p_ccw, f_ccw = sub_and_turn(p_ccw, f_ccw, 'L')
 
             for _ in range(side_length):
                 edge_map[p_cw, turn('L', f_cw)] = (p_ccw, turn('L', f_ccw))
                 edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
                 p_cw = add_points(p_cw, f_cw)
                 p_ccw = add_points(p_ccw, f_ccw)
-            
-    # TODO refactor from here
-    added_edge_points = set(map(lambda x : x[0], edge_map))
-    added_edge_points = added_edge_points.union(inners)
-    edge_points = perimiter.difference(inners)
-    good = all(edge_point in added_edge_points for edge_point in edge_points)
-    if good:
+        
+        return p_cw, f_cw, p_ccw, f_ccw 
+    
+    
+    for inner_corner in inners:
+        p_cw, f_cw, p_ccw, f_ccw = add_edges(*get_pointers(inner_corner))
+
+    added_edge_points = set(map(lambda x : x[0], edge_map)).union(inners)
+    if all(edge_point in added_edge_points for edge_point in PERIMITER):
         return edge_map
 
-    # Pick an inner corner
-    # Determine counter- and clockwise pointers and facing vectors
-    corner = next(x for x in inners)
-    p_cw, f_cw, p_ccw, f_ccw = get_pointers(corner, perimiter)
-
-    # Walk cw and ccw until both pointers are on an edge that hasn't been added yet.
+    # Get to where unadded edges start
     while True:
         if p_cw in added_edge_points:
             p_cw = add_points(p_cw, f_cw)
         if p_ccw in added_edge_points:
             p_ccw = add_points(p_ccw, f_ccw)
-
         if p_cw in inners:
             f_cw = turn('L', f_cw)
         if p_ccw in inners:
             f_ccw = turn('R', f_ccw)
-    
         if p_cw not in perimiter:
-            p_cw = sub_points(p_cw, f_cw)
-            f_cw = turn('R', f_cw)
-
+            p_cw, f_cw = sub_and_turn(p_cw, f_cw, 'R')
         if p_ccw not in perimiter:
-            p_ccw = sub_points(p_ccw, f_ccw)
-            f_ccw = turn('L', f_ccw)
-        
+            p_ccw, f_ccw = sub_and_turn(p_ccw, f_ccw, 'L')
         cond = p_cw not in added_edge_points and p_cw in perimiter
         cond = cond and p_ccw not in added_edge_points and p_ccw in perimiter
         if cond:
             break
 
-    # Walk back one step
     p_cw = sub_points(p_cw, f_cw)
     p_ccw = sub_points(p_ccw, f_ccw)
-
-    # Keep adding edges until we get to an already added edge
-    while True:
-        for _ in range(side_length):
-            edge_map[p_cw, turn('L', f_cw)] = (p_ccw, turn('L', f_ccw))
-            edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
-            p_cw = add_points(p_cw, f_cw)
-            p_ccw = add_points(p_ccw, f_ccw)
-        
-        if p_cw not in perimiter:
-            p_cw = sub_points(p_cw, f_cw)
-            f_cw = turn('R', f_cw)
-
-        if p_ccw not in perimiter:
-            p_ccw = sub_points(p_ccw, f_ccw)
-            f_ccw = turn('L', f_ccw)
-
-        if p_cw in added_edge_points or p_ccw in added_edge_points:
-            break
-    
+    add_edges(p_cw, f_cw, p_ccw, f_ccw)
     return edge_map
 
 def draw_points(points, char):
@@ -251,7 +212,7 @@ def visualize_walk(points, walk):
 
 POSITIONS = set()
 WALLS = set()
-with open('edge_case3.txt', 'r') as file:
+with open('input.txt', 'r') as file:
     data = file.readlines()
     path = [''.join(v) for k, v in groupby(data[-1], str.isdigit)]
     path = [int(v) if str.isdigit(v) else v for v in path]
