@@ -251,7 +251,7 @@ def visualize_walk(points, walk):
 
 POSITIONS = set()
 WALLS = set()
-with open('edge_case.txt', 'r') as file:
+with open('edge_case3.txt', 'r') as file:
     data = file.readlines()
     path = [''.join(v) for k, v in groupby(data[-1], str.isdigit)]
     path = [int(v) if str.isdigit(v) else v for v in path]
