@@ -1,6 +1,7 @@
 from collections import Counter
 from json import dump
 from math import sqrt
+from platform import java_ver
 from string import ascii_uppercase
 from turtle import pos
 from typing import Set, Tuple
@@ -25,7 +26,7 @@ def add_points(p1, p2):
 
 def move_cube(start, facing, insts, positions, walls):
     at = start
-    edge_map = parse_cube(positions.union(walls))
+    edge_map = get_edge_mapping(positions.union(walls))
     points = [(at, facing)]
     
     for inst in insts:
@@ -159,7 +160,7 @@ def visualize_edges(points : Set[Tuple[int, int]]):
 
     return m
 
-def parse_cube(points : Set[Tuple[int, int]]):
+def get_edge_mapping(points : Set[Tuple[int, int]]):
     # len = 6*A = 6*x ** 2
     side_length = sqrt(len(points) / 6)
     assert int(side_length) == side_length
@@ -181,7 +182,7 @@ def parse_cube(points : Set[Tuple[int, int]]):
                 f_ccw, f_cw = d, turn('R', d)
                 break
 
-        # Add the edges connected to the inner corner
+        # Add the edge connected to the inner corner
         for _ in range(side_length):
             p_cw = add_points(p_cw, f_cw)
             p_ccw = add_points(p_ccw, f_ccw)
@@ -205,6 +206,17 @@ def parse_cube(points : Set[Tuple[int, int]]):
                     break
                 p_cw = add_points(p_cw, f_cw)
                 p_ccw = add_points(p_ccw, f_ccw)
+
+    added_edge_points = set(map(lambda x : x[0], edge_map))
+    edge_points = perimiter.difference(inners)
+    good = added_edge_points == edge_points
+    # Check that all edges have been added
+    # If not we have an edge case
+
+    # Pick an inner corner
+    # Walk cw and ccw until both pointers are on an edge that hasn't been added yet.
+    # Keep adding the edges in pairs from there until a point hits an already added edge.
+
 
     return edge_map
 
@@ -243,7 +255,7 @@ def visualize_walk(points, walk):
 
 POSITIONS = set()
 WALLS = set()
-with open('input.txt', 'r') as file:
+with open('test2.txt', 'r') as file:
     data = file.readlines()
     path = [''.join(v) for k, v in groupby(data[-1], str.isdigit)]
     path = [int(v) if str.isdigit(v) else v for v in path]
@@ -273,22 +285,14 @@ perimiter = trace_perimiter(points)
 inners = get_inner_corners(points)
 # draw_points(perimiter, '#')
 
-edges = parse_cube(points)
+edges = get_edge_mapping(points)
 
 for point in perimiter:
     if not any((point, d) in edges for d in DIRS) and not point in inners:
         print(point)
 
-# print(Counter(map(lambda x : x[0], edges)))
-print()
-# print(edges)
 edges = set(edge[0] for edge in edges)
 draw_points(edges, '#')
-
-# edge_drawing = visualize_edges(points)
-# for row in edge_drawing:
-#     print(''.join(row))
-# print()
 
 end, facing = move_cube(top_left, RIGHT, path, POSITIONS, WALLS)
 visualize_walk(points, end)
