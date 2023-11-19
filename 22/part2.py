@@ -89,15 +89,8 @@ def trace_perimiter(points : Set[Tuple[int, int]]):
     
     return perimiter
 
-def visualize_edges(points : Set[Tuple[int, int]]):
-    # len = 6*A = 6*x ** 2
-    side_length = sqrt(len(points) / 6)
-    assert int(side_length) == side_length
-    side_length = int(side_length)
-
+def get_inner_corners(points):
     perimiter = trace_perimiter(points)
-
-    # Get inner corners
     inners = set()
     for p in perimiter:
         u = add_points(p, UP)
@@ -107,6 +100,19 @@ def visualize_edges(points : Set[Tuple[int, int]]):
         if all(poi in points for poi in [u, d, l, r]):
             inners.add(p)
     
+    return inners
+
+def visualize_edges(points : Set[Tuple[int, int]]):
+    # len = 6*A = 6*x ** 2
+    side_length = sqrt(len(points) / 6)
+    assert int(side_length) == side_length
+    side_length = int(side_length)
+
+    perimiter = trace_perimiter(points)
+
+    # Get inner corners
+    inners = get_inner_corners(points)
+
     i = 0
     alfa = ascii_uppercase
     max_r = max(map(lambda x : x[0], points)) + 1 
@@ -160,17 +166,8 @@ def parse_cube(points : Set[Tuple[int, int]]):
     side_length = int(side_length)
 
     perimiter = trace_perimiter(points)
+    inners = get_inner_corners(points) 
 
-    # Get inner corners
-    inners = set()
-    for p in perimiter:
-        u = add_points(p, UP)
-        d = add_points(p, DOWN)
-        l = add_points(p, LEFT)
-        r = add_points(p, RIGHT)
-        if all(poi in points for poi in [u, d, l, r]):
-            inners.add(p)
-    
     # Walk edges out from inner corners
     edge_map = {}
     for inner_corner in inners:
@@ -204,7 +201,7 @@ def parse_cube(points : Set[Tuple[int, int]]):
             for _ in range(side_length):
                 edge_map[p_cw, turn('L', f_cw)] = (p_ccw, turn('L', f_ccw))
                 edge_map[p_ccw, turn('R', f_ccw)] = (p_cw, turn('R', f_cw))
-                if _ == 3:
+                if _ >= side_length - 1:
                     break
                 p_cw = add_points(p_cw, f_cw)
                 p_ccw = add_points(p_ccw, f_ccw)
@@ -273,12 +270,13 @@ for c in range(6*side_length):
         break
 
 perimiter = trace_perimiter(points)
+inners = get_inner_corners(points)
 # draw_points(perimiter, '#')
 
 edges = parse_cube(points)
 
 for point in perimiter:
-    if not any((point, d) in edges for d in DIRS):
+    if not any((point, d) in edges for d in DIRS) and not point in inners:
         print(point)
 
 # print(Counter(map(lambda x : x[0], edges)))
