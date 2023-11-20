@@ -14,7 +14,7 @@ def add_points(p1, p2):
 
 BLIZZARDS = set()
 WALLS = set()
-with open('test.txt', 'r') as file:
+with open('input.txt', 'r') as file:
     start = (0, 1)
     WALLS.add(add_points(start, UP))
     data = [line[:-1] for line in file.readlines()]
@@ -53,7 +53,29 @@ def move_blizzard(b_points):
         ret.add((new_at, facing))
     return ret
 
-def get_nex_blizzard_state():
+def visualize_blizzard(points, walls):
+    m = [['.']*(max_c+1) for _ in range(max_r+1)]
+    for blizz in points:
+        at, facing = blizz
+        r, c = at
+        char = '^>v<'[DIRS.index(facing)]
+        if m[r][c] not in '^>v<':
+            m[r][c] = char
+        elif m[r][c] in '^>v<':
+            m[r][c] = str(2)
+        elif m[r][c] in '123456789':
+            m[r][c] = str(int(m[r][c]+1))
+    
+    for wall in walls:
+        r, c = wall
+        m[r][c] = '#'
+
+    for row in m:
+        print("".join(row))
+    print()
+
+
+def get_next_blizzard_state():
     curr = BLIZZARDS
     while True:
         curr = move_blizzard(curr)
@@ -66,6 +88,9 @@ def solve():
     bliz_steps[0] = BLIZZARDS
     for _ in range(I):
         bliz_steps[_+1] = move_blizzard(bliz_steps[_])
+
+    for blizz in bliz_steps[:19]:
+        visualize_blizzard(blizz, WALLS)
 
     bliz_steps = [set(map(lambda x : x[0], b)) for b in bliz_steps]
 
@@ -90,7 +115,8 @@ def solve():
             if new_at not in bliz and new_at not in WALLS:
                 Q.append((steps+1, new_at))
 
-        if at not in bliz:
+        # TODO we can always stay on the starting square
+        if at not in bliz or at == start:
             Q.append((steps+1, at))
 
     assert at == finish 
