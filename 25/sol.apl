@@ -9,6 +9,6 @@ to_snafu←{
 
 s←'=-012'
 parse←{¯3+s⍳⍵}
+to_snafu←{¯2+5⊥⍣¯1⊢⍵+5⊥2/⍨⌈5⍟⍵}
 n←+/(5⊥parse)¨⊃⎕NGET 'test.txt' 1
-
-s⌷⍨⊂3+to_snafu n
+s[3+to_snafu n]
