@@ -92,14 +92,14 @@ def trace_perimiter(points : Set[Tuple[int, int]]):
 
 def get_inner_corners(points):
     perimiter = trace_perimiter(points)
-    inners = set()
+    inners = []
     for p in perimiter:
         u = add_points(p, UP)
         d = add_points(p, DOWN)
         l = add_points(p, LEFT)
         r = add_points(p, RIGHT)
         if all(poi in points for poi in [u, d, l, r]):
-            inners.add(p)
+            inners.append(p)
     
     return inners
 
@@ -145,35 +145,24 @@ def get_edge_mapping(points : Set[Tuple[int, int]]):
         
         return p_cw, f_cw, p_ccw, f_ccw 
     
-    
+    end_cw = []
+    end_ccw = []
     for inner_corner in inners:
         p_cw, f_cw, p_ccw, f_ccw = add_edges(*get_pointers(inner_corner))
+        end_cw.append(sub_and_turn(p_cw, f_cw, 'R'))
+        end_ccw.append(sub_and_turn(p_ccw, f_ccw, 'L'))
 
-    added_edge_points = set(map(lambda x : x[0], edge_map)).union(inners)
+    # Check that all edges are added, if so return
+    added_edge_points = set(key[0] for key in edge_map).union(inners)
     if all(edge_point in added_edge_points for edge_point in PERIMITER):
         return edge_map
 
-    # Get to where unadded edges start
-    while True:
-        if p_cw in added_edge_points:
-            p_cw = add_points(p_cw, f_cw)
-        if p_ccw in added_edge_points:
-            p_ccw = add_points(p_ccw, f_ccw)
-        if p_cw in inners:
-            f_cw = turn('L', f_cw)
-        if p_ccw in inners:
-            f_ccw = turn('R', f_ccw)
-        if p_cw not in perimiter:
-            p_cw, f_cw = sub_and_turn(p_cw, f_cw, 'R')
-        if p_ccw not in perimiter:
-            p_ccw, f_ccw = sub_and_turn(p_ccw, f_ccw, 'L')
-        cond = p_cw not in added_edge_points and p_cw in perimiter
-        cond = cond and p_ccw not in added_edge_points and p_ccw in perimiter
-        if cond:
-            break
-
-    p_cw = sub_points(p_cw, f_cw)
-    p_ccw = sub_points(p_ccw, f_ccw)
+    # Else: handle edge case
+    # Get to where unadded edges start, and add edges from there
+    end_cw = [g for g in end_cw if add_points(*g) not in added_edge_points]
+    end_ccw = [g for g in end_ccw if add_points(*g) not in added_edge_points]
+    p_cw, f_cw = end_cw[0]
+    p_ccw, f_ccw = end_ccw[-1]
     add_edges(p_cw, f_cw, p_ccw, f_ccw)
     return edge_map
 
@@ -212,7 +201,7 @@ def visualize_walk(points, walk):
 
 POSITIONS = set()
 WALLS = set()
-with open('input.txt', 'r') as file:
+with open('edge_case.txt', 'r') as file:
     data = file.readlines()
     path = [''.join(v) for k, v in groupby(data[-1], str.isdigit)]
     path = [int(v) if str.isdigit(v) else v for v in path]

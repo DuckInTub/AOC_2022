@@ -1,0 +1,4 @@
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/119.0
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
+Accept-Language: en-GB,en;q=0.5
+Cookie: session=53616c7465645f5f12167621cb40e2684fd73c7aa23ab3181568c376cb676eba170e2859fc51170f175eee87504cd53c2e321933d0790aeb5780f90735ba63d6
