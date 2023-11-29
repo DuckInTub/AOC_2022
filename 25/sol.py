@@ -1,8 +1,6 @@
 from functools import reduce
-<<<<<<< Updated upstream
-=======
 from itertools import product
->>>>>>> Stashed changes
+
 
 def add_snafu(s1, s2):
     n_to_snafu = {-2: "=", -1: "-", 0: "0", 1: "1", 2: "2"}
@@ -31,17 +29,8 @@ def snafu_to_dec(ss):
         sm += ("=-012".index(c)-2)*5**i
     return sm
 
-<<<<<<< Updated upstream
 
 with open("input.txt", "r") as file:
     nums = file.read().splitlines()
-=======
-with open("test.txt", "r") as file:
-    nums = file.read().splitlines()
-    # for o1, o2 in product(nums, repeat=2):
-    #     if o1 == o2:
-    #         continue
-    #     print(o1, o2, add_snafu(o1, o2))
->>>>>>> Stashed changes
     sm = reduce(add_snafu, nums)
     print(f"Sum is: {sm}")

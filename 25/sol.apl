@@ -7,8 +7,6 @@ to_snafu←{
      ⌽out⊣f/to_fold
  }
 
-<<<<<<< Updated upstream
-=======
 add_snafu←{
      s←'=-012'
      mx_len←⍺⌈⍥≢⍵
@@ -22,8 +20,6 @@ add_snafu←{
      s[3+ret]
  }
 
-
->>>>>>> Stashed changes
 s←'=-012'
 parse←{¯3+s⍳⍵}
 to_snafu←{¯2+5⊥⍣¯1⊢⍵+5⊥2/⍨⌈5⍟⍵}
